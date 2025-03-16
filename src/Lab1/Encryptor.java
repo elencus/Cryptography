@@ -23,7 +23,7 @@ public class Encryptor {
                 }
         }
 
-        System.out.println(encryptedText.toString());
+        System.out.println(encryptedText);
 
         sc.close();
     }
