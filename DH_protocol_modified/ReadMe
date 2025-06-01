@@ -1,0 +1,114 @@
+Потребни библиотеки:
+DSA криптографија (генерирање, потписи)
+SHA256 за хаширање
+AES енкрипција (симетрична криптографија)
+Padding/unpadding – AES работи со фиксирана големина на блокови,
+па мора да се "пополнуваат" пораките
+
+Класа User(Alice/Bob)
+Секој корисник има DSA (јавен и приватен клуч)
+shared_secret ќе биде симетриски клуч од DH
+
+Методи за потпис и верификација
+
+def sign(self, message):
+        hash_obj = SHA256.new(message)
+        signer = DSS.new(self.dsa_private_key, 'fips-186-3')
+        return signer.sign(hash_obj)
+
+Потпишување порака: се хашира, потоа се потпишува со DSA приватниот клуч.
+
+def verify(self, message, signature, public_key):
+        hash_obj = SHA256.new(message)
+        verifier = DSS.new(public_key, 'fips-186-3')
+        try:
+            verifier.verify(hash_obj, signature)
+            return True
+        except ValueError:
+            return False
+
+Проверка на потпис со јавен клуч. Ако е невалиден, се фрла грешка.
+
+AES симетриска енкрипција и декрипција
+    def encrypt(self, key, message):
+        cipher = AES.new(key, AES.MODE_CBC)
+        ct_bytes = cipher.encrypt(pad(message, AES.block_size))
+        return cipher.iv + ct_bytes
+Симетриска енкрипција со AES во CBC режим
+
+IV (иницијализациски вектор) се додава на почетокот (затоа што е нужен за декрипција)
+
+Функција diffie_hellman_key_exchange()
+
+def diffie_hellman_key_exchange():
+    p = ...
+    g = 2
+Голем прим број p и примитивен корен g
+
+DH се базира на модуларна експоненција: A = g^a mod p
+
+    a = int.from_bytes(get_random_bytes(32), 'big') % p
+    b = int.from_bytes(get_random_bytes(32), 'big') % p
+
+Приватни вредности за Alice (a) и Bob (b)
+
+ A = pow(g, a, p)
+    B = pow(g, b, p)
+
+Јавни вредности за размена
+
+    shared_key_alice = pow(B, a, p)
+    shared_key_bob = pow(A, b, p)
+    assert shared_key_alice == shared_key_bob
+
+И Alice и Bob добиваат ист заеднички таен клуч
+
+shared_secret = hashlib.sha256(str(shared_key_alice).encode()).digest()[:16]
+    return A, B, shared_secret
+
+Генерираме AES клуч со SHA256 и ги враќаме A, B, и симетрискиот клуч
+
+Главна функција -> protocol()
+
+Се креираат корисници со сопствени DSA клучеви.
+
+def protocol():
+    alice = User("Alice")
+    bob = User("Bob")
+
+Alice  му го праќа својот DH јавен клуч ма Боб.
+
+  A, B, shared_key = diffie_hellman_key_exchange()
+    print("[1] Alice → Bob: A =", A)
+
+Bob го потпишува (B, A)
+Го енкриптира потписот со DH заедничкиот клуч
+Ја праќа B и енкриптираниот потпис
+
+ signed_by_bob = bob.sign(f"{B},{A}".encode())
+    encrypted_payload = bob.encrypt(shared_key, signed_by_bob)
+    print("[2] Bob → Alice: B =", B, ", Encrypted Sig =", encrypted_payload.hex())
+
+Alice го дешифрира потписот
+Го верификува со Bob-овиот јавен DSA клуч
+
+  decrypted_signature = alice.decrypt(shared_key, encrypted_payload)
+    if alice.verify(f"{B},{A}".encode(), decrypted_signature, bob.dsa_public_key):
+        print("✅ Alice го верификува потписот на Bob.")
+
+Alice потпишува (A, B)
+Го енкриптира потписот и го праќа назад
+
+ signed_by_alice = alice.sign(f"{A},{B}".encode())
+    encrypted_response = alice.encrypt(shared_key, signed_by_alice)
+    print("[3] Alice → Bob: Encrypted Sig =", encrypted_response.hex())
+
+Bob ја дешифрира пораката
+Го верификува потписот и ако е валиден – врската е воспоставена
+
+decrypted_response = bob.decrypt(shared_key, encrypted_response)
+    if bob.verify(f"{A},{B}".encode(), decrypted_response, alice.dsa_public_key):
+        print("Bob го верификува потписот на Alice.")
+        print("🔐 Secure communication established.")
+    else:
+        print("Потписот на Alice е невалиден!")
