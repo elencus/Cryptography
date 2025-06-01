@@ -1,0 +1,4 @@
+elena,fadf17141f3f9c3389d10d09db99f757,pasw12
+admin,21232f297a57a5a743894a0e4a801fc3,admin1
+admin2,c84258e9c39059a89ab77d846ddab909,admin2
+TEXTCOLLBYfGiJUETHQ4hAcKSMd5zYpgqf1YRDhkmxHkhPWptrkoyz28wnI9V0aHeAuaKnak,faad49866e9498fc1719f5289e7a0269,elena
